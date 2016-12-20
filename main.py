@@ -30,14 +30,15 @@ def main():
             """uses masks to see if non-transparent pixels overlap"""
             #check if the wall has collided:
             wall_offset_x = PLAYER_X - wall_image_x
-            prime_offset_x = PLAYER_X - wall_prime_x
-            offset_y = self.y
-            wall_overlap = wall_mask.overlap(helicopter_mask,(wall_offset_x,offset_y))
+            # prime_offset_x = PLAYER_X - wall_prime_x
+            wall_u_offset_y = self.y - int(wall_image_u_y)
+            wall_d_offset_y = self.y - int(wall_image_d_y)
+            wall_overlap = wall_mask_u.overlap(helicopter_mask,(wall_offset_x,wall_u_offset_y)) or wall_mask_d.overlap(helicopter_mask,(wall_offset_x,wall_d_offset_y))
             if wall_overlap:
                 return True
-            prime_overlap = prime_mask.overlap(helicopter_mask,(prime_offset_x,offset_y))
-            if prime_overlap:
-                return True
+            # prime_overlap = prime_mask.overlap(helicopter_mask,(prime_offset_x,offset_y))
+            # if prime_overlap:
+            #     return True
             #check if the blocks have collided:
             for block in blocks:
                 offset_x = PLAYER_X - block.x
@@ -76,7 +77,8 @@ def main():
                 if event.type == MOUSEBUTTONDOWN:
                     return
             screen.blit(helicopter.image,(PLAYER_X,helicopter.y))
-            screen.blit(wall_image,(0,0))
+            screen.blit(wall_image_u,(0,-100))
+            screen.blit(wall_image_d,(0,400))
             screen.blit(font.render('CLICK TO START',False,pygame.Color(78,195,230)),(300,200))
             screen.blit(small_font.render('BEST: %i'%highscore,False,pygame.Color(0,100,255)),(500,460))
             helicopter.update()
@@ -92,7 +94,7 @@ def main():
     SCREEN_WIDTH, SCREEN_HEIGHT = 700,500
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
-    FPS = 60
+    FPS = 30
     SPEED = 5
     WALL_SPEED = 10
     PLAYER_X = 200
@@ -104,10 +106,14 @@ def main():
 
     #load wall images
     wall_image = pygame.image.load('walls2.png').convert_alpha()
-    wall_prime = pygame.image.load('walls2.png').convert_alpha() #used for looping the wall
+    wall_image_u = pygame.image.load('wallup.png').convert_alpha()
+    wall_image_d = pygame.image.load('walldown.png').convert_alpha()
+    #wall_prime = pygame.image.load('walls2.png').convert_alpha() #used for looping the wall
 
     wall_mask = pygame.mask.from_surface(wall_image,50)
-    prime_mask = pygame.mask.from_surface(wall_prime,50)
+    wall_mask_u = pygame.mask.from_surface(wall_image_u,50)
+    wall_mask_d = pygame.mask.from_surface(wall_image_d,50)
+    #prime_mask = pygame.mask.from_surface(wall_prime,50)
 
     while True: #main loop
         if i > highscore:
@@ -128,6 +134,8 @@ def main():
         restart = False
 
         while not restart: #game loop
+            wall_image_u_y = -100+i*0.05
+            wall_image_d_y = 400-i*0.05
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
@@ -140,21 +148,25 @@ def main():
             screen.fill(pygame.Color('black'))
             screen.blit(helicopter.image, (PLAYER_X,helicopter.y))
 
+            screen.blit(wall_image_u, (wall_image_x,wall_image_u_y))
+            screen.blit(wall_image_d, (wall_image_x,wall_image_d_y))
+
             #displaying the wall:
-            if wall_image_x > -2100:
-                screen.blit(wall_image, (wall_image_x,0))
+            if wall_image_x > -1400:
                 wall_image_x -= WALL_SPEED
-            if wall_prime_x > -2100:
-                screen.blit(wall_prime,(wall_prime_x,0))
-                wall_prime_x -= WALL_SPEED
-            if main_wall == wall_image:
-                if wall_image_x <= -700:
-                    main_wall = wall_prime
-                    wall_prime_x = wall_image_x+1399
-            elif main_wall == wall_prime:
-                if wall_prime_x <= -700:
-                    main_wall = wall_image
-                    wall_image_x = wall_prime_x+1399
+            else :
+                wall_image_x += 1390
+            # if wall_prime_x > -2100:
+            #     screen.blit(wall_prime,(wall_prime_x,0))
+            #     wall_prime_x -= WALL_SPEED
+            # if main_wall == wall_image:
+            #     if wall_image_x <= -700:
+            #         main_wall = wall_prime
+            #         wall_prime_x = wall_image_x+1400
+            # elif main_wall == wall_prime:
+            #     if wall_prime_x <= -700:
+            #         main_wall = wall_image
+            #         wall_image_x = wall_prime_x+1400
 
             #blocks:
             for block in blocks:

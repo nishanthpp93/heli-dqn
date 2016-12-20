@@ -12,9 +12,9 @@ from collections import deque
 GAME = 'heli' # the name of the game being played for log files
 ACTIONS = 2 # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVE = 100. # timesteps to observe before training
-EXPLORE = 2. # frames over which to anneal epsilon
-FINAL_EPSILON = 1 # final value of epsilon
+OBSERVE = 5000. # timesteps to observe before training
+EXPLORE = 100000. # frames over which to anneal epsilon
+FINAL_EPSILON = 0.01 # final value of epsilon
 INITIAL_EPSILON = 1 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
@@ -95,7 +95,7 @@ def trainNetwork(s, readout, h_fc1, sess):
     # get the first state by doing nothing and preprocess the image to 80x80x4
     do_nothing = np.zeros(ACTIONS)
     do_nothing[0] = 1
-    x_t, r_0, terminal = game_state.frame_step(do_nothing)
+    x_t, r_0, terminal, crash_img = game_state.frame_step(do_nothing)
     x_t = cv2.cvtColor(cv2.resize(x_t, (80, 80)), cv2.COLOR_BGR2GRAY)
     ret, x_t = cv2.threshold(x_t,1,255,cv2.THRESH_BINARY)
     s_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
@@ -113,33 +113,54 @@ def trainNetwork(s, readout, h_fc1, sess):
     # start training
     epsilon = INITIAL_EPSILON
     t = 0
+    r2_t = 0
+    flag = 1
+    crash_array = []
     while True:
         # choose an action epsilon greedily
         readout_t = readout.eval(feed_dict={s : [s_t]})[0]
         a_t = np.zeros([ACTIONS])
         action_index = 0
-        if t % FRAME_PER_ACTION == 0:
-            if random.random() <= epsilon:
-                print("----------Random Action----------")
-                action_index = random.randrange(ACTIONS)
-                a_t[random.randrange(ACTIONS)] = 1
-            else:
-                action_index = np.argmax(readout_t)
-                a_t[action_index] = 1
+        # if t % FRAME_PER_ACTION == 0:
+        if random.random() <= epsilon:
+            print("----------Random Action----------")
+            action_index = random.randrange(ACTIONS)
+            a_t[random.randrange(ACTIONS)] = 1
         else:
-            a_t[0] = 1 # do nothing
+            action_index = np.argmax(readout_t)
+            a_t[action_index] = 1
+        # else:
+        #     a_t[0] = 1 # do nothing
 
         # scale down epsilon
         if epsilon > FINAL_EPSILON and t > OBSERVE:
             epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE
 
         # run the selected action and observe next state and reward
-        x_t1_colored, r_t, terminal = game_state.frame_step(a_t)
+        x_t1_colored, r_t, terminal, crash_img = game_state.frame_step(a_t)
         x_t1 = cv2.cvtColor(cv2.resize(x_t1_colored, (80, 80)), cv2.COLOR_BGR2GRAY)
         ret, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
         x_t1 = np.reshape(x_t1, (80, 80, 1))
         #s_t1 = np.append(x_t1, s_t[:,:,1:], axis = 2)
         s_t1 = np.append(x_t1, s_t[:, :, :3], axis=2)
+
+        cr_i = cv2.cvtColor(crash_img, cv2.COLOR_BGR2GRAY)
+        ret, cr_i = cv2.threshold(cr_i, 1, 255, cv2.THRESH_BINARY)
+
+        if terminal:
+            if flag:
+                crash_array.append(cr_i)
+                flag = 0
+            else:
+                for cr in crash_array:
+                    if cv2.matchTemplate(cr,cr_i,cv2.TM_CCOEFF_NORMED) > 0.97:
+                        r2_t = r2_t + 1
+                        r_t = r_t - 0.5
+                        break
+                if r_t == -1:
+                    crash_array.append(cr_i)
+                    if len(crash_array) > 200:
+                        crash_array = crash_array[1:]
 
         # store the transition in D
         D.append((s_t, a_t, r_t, s_t1, terminal))
@@ -192,7 +213,7 @@ def trainNetwork(s, readout, h_fc1, sess):
             state = "train"
 
         print("TIMESTEP", t, "/ STATE", state, \
-            "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, \
+            "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, "/ NoOfR2", r2_t,"/ SizeCrAr", len(crash_array), \
             "/ Q_MAX %e" % np.max(readout_t))
         # write info to files
         '''
