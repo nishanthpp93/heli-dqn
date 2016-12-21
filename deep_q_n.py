@@ -17,6 +17,7 @@ EXPLORE = 100000. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.01 # final value of epsilon
 INITIAL_EPSILON = 1 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
+TERMINAL_BUFFER = 200 # number of terminal states to remember
 BATCH = 32 # size of minibatch
 FRAME_PER_ACTION = 1
 
@@ -121,7 +122,7 @@ def trainNetwork(s, readout, h_fc1, sess):
         readout_t = readout.eval(feed_dict={s : [s_t]})[0]
         a_t = np.zeros([ACTIONS])
         action_index = 0
-        # if t % FRAME_PER_ACTION == 0:
+
         if random.random() <= epsilon:
             print("----------Random Action----------")
             action_index = random.randrange(ACTIONS)
@@ -129,8 +130,6 @@ def trainNetwork(s, readout, h_fc1, sess):
         else:
             action_index = np.argmax(readout_t)
             a_t[action_index] = 1
-        # else:
-        #     a_t[0] = 1 # do nothing
 
         # scale down epsilon
         if epsilon > FINAL_EPSILON and t > OBSERVE:
@@ -141,7 +140,6 @@ def trainNetwork(s, readout, h_fc1, sess):
         x_t1 = cv2.cvtColor(cv2.resize(x_t1_colored, (80, 80)), cv2.COLOR_BGR2GRAY)
         ret, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
         x_t1 = np.reshape(x_t1, (80, 80, 1))
-        #s_t1 = np.append(x_t1, s_t[:,:,1:], axis = 2)
         s_t1 = np.append(x_t1, s_t[:, :, :3], axis=2)
 
         cr_i = cv2.cvtColor(crash_img, cv2.COLOR_BGR2GRAY)
@@ -155,11 +153,11 @@ def trainNetwork(s, readout, h_fc1, sess):
                 for cr in crash_array:
                     if cv2.matchTemplate(cr,cr_i,cv2.TM_CCOEFF_NORMED) > 0.97:
                         r2_t = r2_t + 1
-                        r_t = r_t - 0.5
+                        r_t = r_t - 0.25
                         break
                 if r_t == -1:
                     crash_array.append(cr_i)
-                    if len(crash_array) > 200:
+                    if len(crash_array) > TERMINAL_BUFFER:
                         crash_array = crash_array[1:]
 
         # store the transition in D
