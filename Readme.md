@@ -9,6 +9,12 @@ upon it to play this specific game.
 * Tensorflow
 * OpenCV-Python
 
+# Running
+```
+git clone https://github.com/nishanthpp93/heli-dqn.git
+python deep_q_n.py
+```
+
 # References
 [1] Mnih Volodymyr, Koray Kavukcuoglu, David Silver, Andrei A. Rusu, Joel Veness, Marc G. Bellemare, Alex Graves, 
 Martin Riedmiller, Andreas K. Fidjeland, Georg Ostrovski, Stig Petersen, Charles Beattie, Amir Sadik, Ioannis 
