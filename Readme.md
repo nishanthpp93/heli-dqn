@@ -12,6 +12,7 @@ upon it to play this specific game.
 # Running
 ```
 git clone https://github.com/nishanthpp93/heli-dqn.git
+cd heli-dqn
 python deep_q_n.py
 ```
 
